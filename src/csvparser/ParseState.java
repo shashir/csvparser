@@ -1,0 +1,11 @@
+package csvparser;
+
+public enum ParseState {
+  START,
+  END,
+  UNQUOTED_TOKEN,
+  UNQUOTED_TOKEN_SPACE_TRAIL,
+  QUOTED_TOKEN,
+  QUOTED_TOKEN_SPACE_TRAIL,
+  UNEXPECTED_CHARACTER;
+}
