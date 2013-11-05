@@ -5,7 +5,8 @@ import java.util.List;
 
 public class Context {
   private final List<LinkedList<String>> mData = new LinkedList<LinkedList<String>>();
-  private String mTokenBuffer;
+  private String mTokenBuffer = "";
+  private String mSpaceTrailBuffer = "";
   private LinkedList<String> mRowBuffer = new LinkedList<String>();
   public List<? extends List<String>> getData() {
     return mData;
@@ -16,6 +17,16 @@ public class Context {
   public void pushToken() {
     mRowBuffer.add(mTokenBuffer);
     mTokenBuffer = "";
+  }
+  public void pushSpace(final String space) {
+    mSpaceTrailBuffer += space;
+  }
+  public void pushSpaceTrail() {
+    mTokenBuffer += mSpaceTrailBuffer;
+    clearSpaceTrail();
+  }
+  public void clearSpaceTrail() {
+    mSpaceTrailBuffer = "";
   }
   public void pushRow() {
     mData.add(mRowBuffer);

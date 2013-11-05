@@ -7,52 +7,113 @@ public class ParseMachine {
   private ParseState mState;
   public ParseMachine(final Context context) {
     mContext = context;
+    mState = ParseState.START;
   }
-  public ParseState parseCharacter(final String character, final ParseState state) {
-    switch(state) {
+  public void parseCharacter(final String character) {
+    switch(mState) {
       case START:
-        return start(character);
+        start(character);
+        break;
       case END:
-        return end(character);
+        end(character);
+        break;
       case UNQUOTED_TOKEN:
-        return unquotedToken(character);
-      case UNQUOTED_TOKEN_SPACE_TRAIL:
-        return unquotedTokenSpaceTrail(character);
+        unquotedToken(character);
+        break;
       case QUOTED_TOKEN:
-        return quotedToken(character);
+        quotedToken(character);
+        break;
       case QUOTED_TOKEN_SPACE_TRAIL:
-        return quotedTokenSpaceTrail(character);
+        quotedTokenSpaceTrail(character);
+        break;
       default:
         throw new IllegalArgumentException("Unexpected state");
     }
   }
-  private ParseState quotedTokenSpaceTrail(String character) {
-    // TODO Auto-generated method stub
-    return null;
+  public void close() {
+    mContext.pushToken();
+    mContext.pushRow();
   }
-  private ParseState quotedToken(String character) {
-    // TODO Auto-generated method stub
-    return null;
+  private void quotedTokenSpaceTrail(String character) {
+
   }
-  private ParseState unquotedTokenSpaceTrail(String character) {
-    // TODO Auto-generated method stub
-    return null;
+  private void quotedToken(String character) {
+
   }
-  private ParseState unquotedToken(String character) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  private ParseState end(String character) {
-    // TODO Auto-generated method stub
-    return null;
-  }
-  private ParseState start(String character) {
-    if (SpecialCharacter.SPACE.getRepresentation() == character
-        || SpecialCharacter.TAB.getRepresentation() == character) {
-      return ParseState.START;
-    } else if (SpecialCharacter.EOL.getRepresentation() == character) {
-      return ParseState.START;
+  private void unquotedToken(String character) {
+    if (SpecialCharacter.SPACE.getRepresentation().equals(character)
+        || SpecialCharacter.TAB.getRepresentation().equals(character)) {
+      mContext.pushSpace(character);
+      mState = ParseState.UNQUOTED_TOKEN;
+    } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
+      mContext.pushToken();
+      mContext.pushRow();
+      if (SpecialCharacter.EOL.getRepresentation().length() > 1) {
+        mState = ParseState.END;
+      } else {
+        mState = ParseState.START;
+      }
+    } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
+      mContext.pushToken();
+      mState = ParseState.START;
+    } else {
+      mContext.pushSpaceTrail();
+      mContext.pushTokenLetter(character);
+      mState = ParseState.UNQUOTED_TOKEN;
     }
   }
+  private void end(String character) {
+    if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
+      mState = ParseState.END;
+    } else {
+      
+    }
+    mState = ParseState.START;
+  }
+  private void start(String character) {
+    if (SpecialCharacter.SPACE.getRepresentation().equals(character)
+        || SpecialCharacter.TAB.getRepresentation().equals(character)) {
+      mState = ParseState.START;
+    } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
+      mContext.pushToken();
+      mContext.pushRow();
+      if (SpecialCharacter.EOL.getRepresentation().length() > 1) {
+        mState = ParseState.END;
+      } else {
+        mState = ParseState.START;
+      }
+    } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
+      mContext.pushToken();
+      mState = ParseState.START;
+    } else {
+      mContext.pushTokenLetter(character);
+      mState = ParseState.UNQUOTED_TOKEN;
+    }
+  }
+  public Context getContext() {
+    return mContext;
+  }
+  public String toString() {
+    return mState.name();
+  }
 
+  public static void main(String[] args) {
+    ParseMachine machine = new ParseMachine(new Context());
+    // try " , , ,"
+    String test = "cookies, pets,     \t why, so,\tserial,, t t,";
+    System.out.println(machine
+        + " row buffer: " + machine.getContext().getRowBuffer()
+        + ", token buffer: " + machine.getContext().getTokenBuffer());
+    for (int i = 0; i < test.length(); i++) {
+      machine.parseCharacter("" + test.charAt(i));
+      System.out.println(machine
+          + " row buffer: " + machine.getContext().getRowBuffer() + " " + machine.getContext().getRowBuffer().size()
+          + ", token buffer: " + machine.getContext().getTokenBuffer() + " " + machine.getContext().getTokenBuffer().length());
+    }
+    machine.close();
+    System.out.println(machine
+        + " row buffer: " + machine.getContext().getRowBuffer() + " " + machine.getContext().getRowBuffer().size()
+        + ", token buffer: " + machine.getContext().getTokenBuffer() + " " + machine.getContext().getTokenBuffer().length());
+    System.out.println(machine.getContext().getData());
+  }
 }
