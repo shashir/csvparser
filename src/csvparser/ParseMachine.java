@@ -1,7 +1,5 @@
 package csvparser;
 
-import java.io.InputStream;
-
 public class ParseMachine {
   private final Context mContext;
   private ParseState mState;
@@ -23,6 +21,9 @@ public class ParseMachine {
       case QUOTED_TOKEN:
         quotedToken(character);
         break;
+      case ESCAPED_QUOTE:
+        escapedQuote(character);
+        break;
       case QUOTED_TOKEN_SPACE_TRAIL:
         quotedTokenSpaceTrail(character);
         break;
@@ -30,15 +31,50 @@ public class ParseMachine {
         throw new IllegalArgumentException("Unexpected state");
     }
   }
+  private void escapedQuote(String character) {
+    if (SpecialCharacter.SPACE.getRepresentation().equals(character)
+        || SpecialCharacter.TAB.getRepresentation().equals(character)) {
+      mContext.pushToken();
+      mState = ParseState.QUOTED_TOKEN_SPACE_TRAIL;
+    } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
+      mContext.pushToken();
+      mContext.pushRow();
+      mState = ParseState.END;
+    } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
+      mContext.pushToken();
+      mState = ParseState.START;
+    } else if (SpecialCharacter.QUOTE.getRepresentation().equals(character)) {
+      mContext.pushTokenLetter(SpecialCharacter.QUOTE.getRepresentation());
+      mState = ParseState.QUOTED_TOKEN;
+    } else {
+      throw new IllegalArgumentException(
+          "Unexpected letter after end quote: " + character);
+    }
+  }
   public void close() {
     mContext.pushToken();
     mContext.pushRow();
   }
   private void quotedTokenSpaceTrail(String character) {
-
+    if (SpecialCharacter.SPACE.getRepresentation().equals(character)
+        || SpecialCharacter.TAB.getRepresentation().equals(character)) {
+      mState = ParseState.QUOTED_TOKEN_SPACE_TRAIL;
+    } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
+      mState = ParseState.END;
+    } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
+      mState = ParseState.START;
+    } else {
+      throw new IllegalArgumentException(
+          "Unexpected letter after end quote: " + character);
+    }
   }
   private void quotedToken(String character) {
-
+    if (SpecialCharacter.QUOTE.getRepresentation().equals(character)) {
+      mState = ParseState.ESCAPED_QUOTE;
+    } else {
+      mContext.pushTokenLetter(character);
+      mState = ParseState.QUOTED_TOKEN;
+    }
   }
   private void unquotedToken(String character) {
     if (SpecialCharacter.SPACE.getRepresentation().equals(character)
@@ -48,14 +84,12 @@ public class ParseMachine {
     } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
       mContext.pushToken();
       mContext.pushRow();
-      if (SpecialCharacter.EOL.getRepresentation().length() > 1) {
-        mState = ParseState.END;
-      } else {
-        mState = ParseState.START;
-      }
+      mState = ParseState.END;
     } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
       mContext.pushToken();
       mState = ParseState.START;
+    } else if (SpecialCharacter.QUOTE.getRepresentation().equals(character)) {
+      throw new IllegalArgumentException("Unexpected quote in the middle of an unquoted token.");
     } else {
       mContext.pushSpaceTrail();
       mContext.pushTokenLetter(character);
@@ -66,9 +100,8 @@ public class ParseMachine {
     if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
       mState = ParseState.END;
     } else {
-      
+      start(character);
     }
-    mState = ParseState.START;
   }
   private void start(String character) {
     if (SpecialCharacter.SPACE.getRepresentation().equals(character)
@@ -77,14 +110,12 @@ public class ParseMachine {
     } else if (SpecialCharacter.EOL.getRepresentation().contains(character)) {
       mContext.pushToken();
       mContext.pushRow();
-      if (SpecialCharacter.EOL.getRepresentation().length() > 1) {
-        mState = ParseState.END;
-      } else {
-        mState = ParseState.START;
-      }
+      mState = ParseState.END;
     } else if (SpecialCharacter.COMMA.getRepresentation().equals(character)) {
       mContext.pushToken();
       mState = ParseState.START;
+    } else if (SpecialCharacter.QUOTE.getRepresentation().equals(character)) {
+      mState = ParseState.QUOTED_TOKEN;
     } else {
       mContext.pushTokenLetter(character);
       mState = ParseState.UNQUOTED_TOKEN;
@@ -95,25 +126,5 @@ public class ParseMachine {
   }
   public String toString() {
     return mState.name();
-  }
-
-  public static void main(String[] args) {
-    ParseMachine machine = new ParseMachine(new Context());
-    // try " , , ,"
-    String test = "cookies, pets,     \t why, so,\tserial,, t t,";
-    System.out.println(machine
-        + " row buffer: " + machine.getContext().getRowBuffer()
-        + ", token buffer: " + machine.getContext().getTokenBuffer());
-    for (int i = 0; i < test.length(); i++) {
-      machine.parseCharacter("" + test.charAt(i));
-      System.out.println(machine
-          + " row buffer: " + machine.getContext().getRowBuffer() + " " + machine.getContext().getRowBuffer().size()
-          + ", token buffer: " + machine.getContext().getTokenBuffer() + " " + machine.getContext().getTokenBuffer().length());
-    }
-    machine.close();
-    System.out.println(machine
-        + " row buffer: " + machine.getContext().getRowBuffer() + " " + machine.getContext().getRowBuffer().size()
-        + ", token buffer: " + machine.getContext().getTokenBuffer() + " " + machine.getContext().getTokenBuffer().length());
-    System.out.println(machine.getContext().getData());
   }
 }
