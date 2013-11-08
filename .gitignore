@@ -17,6 +17,7 @@ nbactions.xml
 .ensime
 .idea/
 *.iml
+.checkstyle
 
 # Build and run artifacts.
 bin/
